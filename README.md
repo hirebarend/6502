@@ -1,5 +1,7 @@
 # 6502
 
+A minimal assembler and emulator for the classic 6502 CPU — built from scratch for learning, fun, and retro computing nostalgia.
+
 ## Assembly
 
 ```asm
