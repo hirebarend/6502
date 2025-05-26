@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import { Assembler } from './assembler';
 import { Emulator } from './emulator';
+import { Tokenizer } from './tokenizer';
 
 // const emulator = new Emulator(
 //   new Uint32Array([
@@ -27,6 +28,6 @@ import { Emulator } from './emulator';
 
 const src: string = fs.readFileSync('data/code-1.asm', 'utf-8');
 
-const assembler = new Assembler(src);
+const tokenizer = new Tokenizer(src);
 
-console.log(assembler.assemble());
+fs.writeFileSync('aa.txt', JSON.stringify(tokenizer.tokenize(), undefined, 4));
