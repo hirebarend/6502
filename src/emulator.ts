@@ -1,0 +1,208 @@
+import { OPCODES } from './opcodes';
+import { AddressingMode } from './types';
+
+export class Emulator {
+  protected PC: number = 0x0000;
+
+  protected A: number = 0x00;
+  protected X: number = 0x00;
+  protected Y: number = 0x00;
+
+  protected C: boolean = false;
+  protected I: boolean = false;
+  protected N: boolean = false;
+  protected V: boolean = false;
+  protected Z: boolean = false;
+
+  constructor(protected memory: Uint32Array) {}
+
+  protected readByte(address: number): number {
+    return this.memory[address & 0xffff];
+  }
+
+  protected readWord(address: number): number {
+    const low = this.readByte(address);
+    const high = this.readByte((address + 1) & 0xffff);
+    return (high << 8) | low;
+  }
+
+  protected resolveOperand(addressingMode: AddressingMode): number {
+    switch (addressingMode) {
+      case 'immediate': {
+        return this.readByte(this.PC++);
+      }
+
+      case 'zeropage': {
+        const addr = this.readByte(this.PC++);
+        return this.readByte(addr);
+      }
+
+      case 'zeropage_x': {
+        const base = this.readByte(this.PC++);
+        const addr = (base + this.X) & 0xff;
+        return this.readByte(addr);
+      }
+
+      case 'absolute': {
+        const addr = this.readWord(this.PC);
+        this.PC += 2;
+        return this.readByte(addr);
+      }
+
+      case 'absolute_x': {
+        const base = this.readWord(this.PC);
+        this.PC += 2;
+        const addr = (base + this.X) & 0xffff;
+        return this.readByte(addr);
+      }
+
+      case 'zeropage_x_indirect': {
+        const zp = (this.readByte(this.PC++) + this.X) & 0xff;
+        const low = this.readByte(zp);
+        const high = this.readByte((zp + 1) & 0xff);
+        const addr = (high << 8) | low;
+        return this.readByte(addr);
+      }
+
+      case 'zeropage_y_indirect': {
+        const zp = this.readByte(this.PC++);
+        const low = this.readByte(zp);
+        const high = this.readByte((zp + 1) & 0xff);
+        const base = (high << 8) | low;
+        const addr = (base + this.Y) & 0xffff;
+        return this.readByte(addr);
+      }
+
+      default:
+        throw new Error(`Unsupported addressing mode: ${addressingMode}`);
+    }
+  }
+
+  protected setC(carry: boolean) {
+    this.C = carry;
+  }
+
+  protected setN(value: number) {
+    this.N = (value & 0x80) !== 0;
+  }
+
+  protected setZ(value: number) {
+    this.Z = value === 0;
+  }
+
+  public state() {
+    console.log(`A: ${this.A}`);
+    console.log(`A: ${this.X}`);
+  }
+
+  public tick() {
+    if (this.I) {
+      return false;
+    }
+
+    const opcode = this.readByte(this.PC++);
+
+    const mnemonic = OPCODES[opcode].mnemonic;
+
+    const addressingMode = OPCODES[opcode].addressingMode;
+
+    console.log(`[${mnemonic}] - ${addressingMode}`);
+
+    const handlers: Record<
+      string,
+      (addressingMode: AddressingMode) => boolean
+    > = {
+      ADC: this.handleAdc,
+      BNE: this.handleBne,
+      BRK: this.handleBrk,
+      CPX: this.handleCpx,
+      INX: this.handleInx,
+      LDX: this.handleLdx,
+    };
+
+    const handler = handlers[mnemonic];
+
+    if (!handler) {
+      throw new Error('');
+    }
+
+    return handler.call(this, addressingMode);
+  }
+
+  protected handleAdc(addressingMode: AddressingMode): boolean {
+    const value: number = this.resolveOperand(addressingMode);
+
+    const carryIn = this.C ? 1 : 0;
+    const sum = this.A + value + carryIn;
+    const result = sum & 0xff;
+
+    this.setC(sum > 0xff);
+    this.setN(result);
+    this.V = !!(~(this.A ^ value) & (this.A ^ result) & 0x80);
+    this.setZ(result);
+
+    this.A = result;
+
+    return true;
+  }
+
+  protected handleBne(addressingMode: AddressingMode): boolean {
+    if (addressingMode !== 'relative') {
+      throw new Error(`unexpected addressing mode: ${addressingMode}`);
+    }
+
+    const offset = this.readByte(this.PC++);
+
+    const signedOffset = offset < 0x80 ? offset : offset - 0x100;
+
+    if (!this.Z) {
+      this.PC = (this.PC + signedOffset) & 0xffff;
+    }
+
+    return true;
+  }
+
+  protected handleBrk(addressingMode: AddressingMode): boolean {
+    if (addressingMode !== 'implied') {
+      throw new Error(`unexpected addressing mode: ${addressingMode}`);
+    }
+
+    this.I = true;
+
+    return true;
+  }
+
+  protected handleCpx(addressingMode: AddressingMode): boolean {
+    const value: number = this.resolveOperand(addressingMode);
+
+    const result = this.X - value;
+
+    this.setC(this.X >= value);
+    this.setN(result & 0x80);
+    this.setZ(result);
+
+    return true;
+  }
+
+  protected handleInx(addressingMode: AddressingMode): boolean {
+    if (addressingMode !== 'implied') {
+      throw new Error(`unexpected addressing mode: ${addressingMode}`);
+    }
+
+    this.X++;
+
+    this.setN(this.X);
+    this.setZ(this.X);
+
+    return true;
+  }
+
+  protected handleLdx(addressingMode: AddressingMode): boolean {
+    this.X = this.resolveOperand(addressingMode);
+
+    this.setN(this.X);
+    this.setZ(this.X);
+
+    return true;
+  }
+}

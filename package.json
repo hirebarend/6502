@@ -1,7 +1,7 @@
 {
-  "name": "typescript-boilerplate",
+  "name": "6502",
   "version": "1.0.0",
-  "description": "The TypeScript boilerplate with all you need to build your SaaS, AI tool, or any other web app and make your first $ online fast.",
+  "description": "",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "scripts": {
