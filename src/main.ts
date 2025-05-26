@@ -29,4 +29,4 @@ const src: string = fs.readFileSync('data/code-1.asm', 'utf-8');
 
 const assembler = new Assembler(src);
 
-console.log(assembler.tokenize(src));
+console.log(assembler.assemble());

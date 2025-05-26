@@ -26,7 +26,7 @@ print_loop:
 
         ; Increment counter
         INX
-        CPX #10              ; Have we printed 10 numbers?
+        CPX #$10             ; Have we printed 10 numbers?
         BNE print_loop       ; If not, repeat
 
         BRK                  ; End program

@@ -10,3 +10,8 @@ export type AddressingMode =
   | 'zeropage_y'
   | 'zeropage_x_indirect'
   | 'zeropage_y_indirect';
+
+export type Token = {
+  type: string;
+  value: number | string | undefined;
+};
