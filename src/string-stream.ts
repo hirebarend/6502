@@ -13,11 +13,13 @@ export class StringStream {
     return buffer;
   }
 
-  public next() {
-    return this.str[this.index++];
+  public next(): string | undefined {
+    return this.index < this.str.length ? this.str[this.index++] : undefined;
   }
 
-  public peek(n: number = 0) {
-    return this.str[this.index + n];
+  public peek(n: number = 0): string | undefined {
+    return this.index + n < this.str.length
+      ? this.str[this.index + n]
+      : undefined;
   }
 }

@@ -2,66 +2,15 @@
 
 A minimal assembler and emulator for the classic 6502 CPU — built from scratch for learning, fun, and retro computing nostalgia.
 
-## Assembly
+## Get Started
 
-```asm
- start:
-        LDX #$00             ; Counter = 0
-        LDA #$00             ; A = 0 (fib0)
-        STA fib1
-        LDA #$01             ; A = 1 (fib1)
-        STA fib2
-```
+```bash
+git clone https://github.com/hirebarend/6502.git
 
-## Tokens
+cd 6502
 
-```json
-[
-    {
-        "type": "label",
-        "value": "start"
-    },
-    {
-        "type": "mnemonic",
-        "value": "LDX"
-    },
-    {
-        "type": "number",
-        "value": 0
-    },
-    {
-        "type": "mnemonic",
-        "value": "LDA"
-    },
-    {
-        "type": "number",
-        "value": 0
-    },
-    {
-        "type": "mnemonic",
-        "value": "STA"
-    },
-    {
-        "type": "literal",
-        "value": "fib1"
-    },
-    {
-        "type": "mnemonic",
-        "value": "LDA"
-    },
-    {
-        "type": "number",
-        "value": 1
-    },
-    {
-        "type": "mnemonic",
-        "value": "STA"
-    },
-    {
-        "type": "literal",
-        "value": "fib2"
-    }
-]
+# assemble
+npm run dev -- fibonacci.asm fibonacci.bin
 ```
 
 ## Contributing
@@ -79,7 +28,7 @@ We love our contributors! Here's how you can contribute:
 
 ## Repo Activity
 
-![Alt](https://repobeats.axiom.co/api/embed/616bc192c7db2f2af8549094bc3a801da418e8a8.svg "Repobeats analytics image")
+![Alt](https://repobeats.axiom.co/api/embed/616bc192c7db2f2af8549094bc3a801da418e8a8.svg 'Repobeats analytics image')
 
 ## License
 

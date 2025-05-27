@@ -16,7 +16,15 @@ const OPCODES: Record<string, { [key: string]: number }> = {
   ASL: {
     absolute: 0x0e,
   },
-
+  INX: {
+    implied: 0xe8,
+  },
+  BNE: {
+    relative: 0xd0,
+  },
+  BRK: {
+    implied: 0x00,
+  },
   //////
   CLC: {
     implied: 0x18,
@@ -34,22 +42,20 @@ const OPCODES: Record<string, { [key: string]: number }> = {
 };
 
 export class Assembler {
-  protected memory: Uint8Array = new Uint8Array(0x10000);
+  protected labels: Record<string, number> = {};
 
-  protected reservedPointer: number = 65536;
+  protected pointer: number = 0;
+
+  protected reservedPointer: number = 0x10000;
+
+  protected variables: Record<string, number> = {};
 
   constructor(protected src: string) {}
 
-  public assemble(): Uint32Array {
-    let pointer: number = 0;
+  public assemble() {
+    const arr = [];
 
     const tokens: Array<Token> = new Tokenizer(this.src).tokenize();
-
-    console.log(tokens)
-
-    const labels: Record<string, number> = {};
-
-    const variables: Record<string, number> = {};
 
     const tokenStream: TokenStream = new TokenStream(tokens);
 
@@ -63,7 +69,11 @@ export class Assembler {
       }
 
       if (token.type === 'directive') {
-        tokenStream.next();
+        token = tokenStream.next();
+
+        // this.pointer = this.tokenToValue(token, false);
+
+        this.pointer = 0x6000;
 
         continue;
       }
@@ -76,9 +86,9 @@ export class Assembler {
 
       if (token.type === 'mnemonic') {
         const obj = {
-          addressingMode: undefined as AddressingMode | undefined,
+          addressingMode: 'implied' as AddressingMode,
           label: undefined as string | undefined,
-          mnemonic: token.value,
+          mnemonic: token.value as string,
           position: undefined as number | undefined,
           value: undefined as Uint8Array | undefined,
         };
@@ -89,38 +99,95 @@ export class Assembler {
           label = undefined;
         }
 
-        if (
-          tokenStream.peek() &&
-          ['address', 'literal', 'number'].includes(tokenStream.peek().type)
-        ) {
+        if (tokenStream.peek()) {
           token = tokenStream.next();
 
-          if (token.type === 'address') {
-            obj.addressingMode = 'absolute';
-
-            obj.value = new Uint8Array(
-              numberToLittleEndian(token.value as number),
-            );
-          } else if (token.type === 'literal' && token.value === 'A') {
+          if (token.type === 'literal' && token.value === 'A') {
             obj.addressingMode = 'accumulator';
-          } else if (obj.mnemonic === 'BNE' && token.type === 'literal') {
-            obj.value = new Uint8Array(
-              numberToLittleEndian(labels[token.value as string]),
-            );
-          } else if (token.type === 'literal') {
-            if (obj.mnemonic === 'BNE') {
-              obj.value = new Uint8Array(
-                numberToLittleEndian(variables[token.value as string]),
-              );
+          } else if (
+            token.type === 'parentheses' &&
+            tokenStream.peek() &&
+            tokenStream.peek().type === 'address' &&
+            tokenStream.peek(1) &&
+            tokenStream.peek(1).type === 'comma' &&
+            tokenStream.peek(2) &&
+            tokenStream.peek(2).type === 'literal' &&
+            tokenStream.peek(3) &&
+            tokenStream.peek(3).type === 'parentheses'
+          ) {
+            if (
+              tokenStream.peek(2) &&
+              tokenStream.peek(2).type === 'literal' &&
+              tokenStream.peek(2).value === 'X'
+            ) {
+              obj.addressingMode = 'zeropage_x_indirect';
+            } else if (
+              tokenStream.peek(2) &&
+              tokenStream.peek(2).type === 'literal' &&
+              tokenStream.peek(2).value === 'Y'
+            ) {
+              obj.addressingMode = 'zeropage_y_indirect';
             }
 
-            if (!variables[token.value as string]) {
-              variables[token.value as string] = --this.reservedPointer;
-            }
+            obj.value = this.tokenToValue(tokenStream.peek(), false);
 
-            obj.value = new Uint8Array(
-              numberToLittleEndian(variables[token.value as string]),
-            );
+            // TODO:
+            tokenStream.next();
+            tokenStream.next();
+            tokenStream.next();
+            tokenStream.next();
+          } else if (
+            token.type === 'parentheses' &&
+            tokenStream.peek() &&
+            tokenStream.peek().type === 'address' &&
+            tokenStream.peek(1) &&
+            tokenStream.peek(1).type === 'parentheses'
+          ) {
+            obj.addressingMode = 'absolute_indirect';
+
+            obj.value = this.tokenToValue(tokenStream.peek(), false);
+
+            // TODO
+            tokenStream.next();
+            tokenStream.next();
+          } else if (token.type === 'address' || token.type === 'literal') {
+            if (
+              tokenStream.peek() &&
+              tokenStream.peek().type === 'comma' &&
+              tokenStream.peek(1).type === 'literal'
+            ) {
+              if (tokenStream.peek(1).value === 'X') {
+                if (token.bits === 8) {
+                  obj.addressingMode = 'zeropage_x';
+                } else {
+                  obj.addressingMode = 'absolute_x';
+                }
+              } else if (tokenStream.peek(1).value === 'Y') {
+                if (token.bits === 8) {
+                  obj.addressingMode = 'zeropage_y';
+                } else {
+                  obj.addressingMode = 'absolute_y';
+                }
+              }
+
+              obj.value = this.tokenToValue(token, false);
+
+              // TODO:
+              tokenStream.next();
+              tokenStream.next();
+            } else if (this.isBranchInstruction(obj.mnemonic)) {
+              obj.addressingMode = 'relative';
+
+              obj.value = this.tokenToValue(token, true);
+            } else if (token.bits === 8) {
+              obj.addressingMode = 'zeropage';
+
+              obj.value = this.tokenToValue(token, false);
+            } else {
+              obj.addressingMode = 'absolute';
+
+              obj.value = this.tokenToValue(token, false);
+            }
           } else if (token.type === 'number') {
             obj.addressingMode = 'immediate';
 
@@ -130,23 +197,106 @@ export class Assembler {
           }
         }
 
-        obj.position = pointer;
-        pointer += 1 + (obj.value ? obj.value.length : 0);
+        obj.position = this.pointer;
+        this.pointer += 1 + (obj.value ? obj.value.length : 0);
 
-        if (obj.label && !labels[obj.label]) {
-          labels[obj.label] = obj.position;
+        if (obj.label && !this.labels[obj.label]) {
+          this.labels[obj.label] = obj.position;
         }
 
-        console.log(obj);
+        arr.push(obj);
       }
     }
 
-    // return new Uint32Array(
-    //   arr
-    //     .map((x) => [x.opcode, ...(x.value || [])])
-    //     .reduce((a, b) => a.concat(b)),
-    // );
+    // const memory: Uint8Array = new Uint8Array(0x10000);
 
-    return new Uint32Array();
+    // for (const x of arr) {
+    //   if (!x.position) {
+    //     continue;
+    //   }
+
+    //   memory[x.position] =
+
+    //   if (x.value) {
+    //     for (let i = 0; i < x.value.length; i++) {
+    //       memory[x.position + i + 1] = x.value[i];
+    //     }
+    //   }
+    // }
+
+    // ///////////////////////////////
+
+    // const output = [];
+
+    // for (const x of arr) {
+    //   if (!x.position) {
+    //     continue;
+    //   }
+
+    //   if (!OPCODES[x.mnemonic]) {
+    //     throw new Error(x.mnemonic);
+    //   }
+
+    //   output.push(OPCODES[x.mnemonic][x.addressingMode]);
+
+    //   if (x.value) {
+    //     for (let i = 0; i < x.value.length; i++) {
+    //       output.push(x.value[i]);
+    //     }
+    //   }
+    // }
+
+    // return output.map((x) => x.toString(16));
+
+    for (const x of arr) {
+      if (x.value) {
+        console.log(
+          `${OPCODES[x.mnemonic][x.addressingMode].toString(16)} ${x.value.map((y) => (y as any).toString(16)).join(' ')} ; ${x.mnemonic}`,
+        );
+      } else {
+        console.log(
+          `${OPCODES[x.mnemonic][x.addressingMode].toString(16)} ; ${x.mnemonic}`,
+        );
+      }
+    }
+
+    return new Uint8Array([]);
+  }
+
+  protected isBranchInstruction(mnemonic: string | undefined): boolean {
+    if (!mnemonic) {
+      return false;
+    }
+
+    return ['BCC', 'BCS', 'BEQ', 'BMI', 'BNE', 'BPL', 'BVC', 'BVS'].includes(
+      mnemonic,
+    );
+  }
+
+  protected tokenToValue(
+    token: Token,
+    isBranchInstruction: boolean,
+  ): Uint8Array | undefined {
+    if (token.type === 'address') {
+      if (token.bits === 8) {
+        return new Uint8Array(numberToLittleEndian(token.value as number, 1));
+      } else if (token.bits === 16) {
+        return new Uint8Array(numberToLittleEndian(token.value as number, 2));
+      }
+    } else if (token.type === 'literal' && !isBranchInstruction) {
+      if (!this.variables[token.value as string]) {
+        this.variables[token.value as string] = --this.reservedPointer;
+      }
+
+      return new Uint8Array(
+        numberToLittleEndian(this.variables[token.value as string], 2),
+      );
+    } else if (token.type === 'literal' && isBranchInstruction) {
+      return new Uint8Array(
+        numberToLittleEndian(this.labels[token.value as string], 2),
+      );
+    }
+
+    return undefined;
   }
 }

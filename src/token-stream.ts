@@ -9,7 +9,7 @@ export class TokenStream {
     return this.tokens[this.index++];
   }
 
-  public peek() {
-    return this.tokens[this.index];
+  public peek(n: number = 0) {
+    return this.tokens[this.index + n];
   }
 }

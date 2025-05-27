@@ -1,5 +1,6 @@
 export type AddressingMode =
   | 'absolute'
+  | 'absolute_indirect'
   | 'absolute_x'
   | 'absolute_y'
   | 'accumulator'
@@ -13,6 +14,7 @@ export type AddressingMode =
   | 'zeropage_y_indirect';
 
 export type Token = {
+  bits: number | undefined;
   type: string;
   value: number | string | undefined;
 };

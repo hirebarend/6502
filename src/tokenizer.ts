@@ -5,11 +5,10 @@ export class Tokenizer {
   constructor(protected src: string) {}
 
   public tokenize(): Array<Token> {
-    const lines: Array<string> = this.src
+    return this.src
       .split('\n')
-      .filter((x) => (x ? true : false));
-
-    return lines.map((x) => this.tokenizeLine(x)).reduce((a, b) => a.concat(b));
+      .filter((line) => line.trim() !== '')
+      .flatMap((line) => this.tokenizeLine(line.trim()));
   }
 
   public tokenizeLine(src: string): Array<Token> {
@@ -20,40 +19,24 @@ export class Tokenizer {
     let buffer: string = '';
 
     while (stringStream.peek()) {
-      const c: string = stringStream.next();
+      const c: string | undefined = stringStream.next();
+
+      if (!c) {
+        break;
+      }
 
       if (c === ' ') {
         continue;
       }
 
       if (c === ';') {
-        if (stringStream.peek() === ' ') {
-          stringStream.next();
-        }
-
-        tokens.push({
-          type: 'comment',
-          value: stringStream.end(),
-        });
-
-        buffer = '';
+        tokens.push(...this.parseComment(stringStream));
 
         continue;
       }
 
       if (c === '.') {
-        while (stringStream.peek() !== ' ') {
-          buffer += stringStream.next();
-        }
-
-        tokens.push({
-          type: 'directive',
-          value: buffer,
-        });
-
-        buffer = '';
-
-        tokens.push(...this.tokenizeLineValue(stringStream));
+        tokens.push(...this.parseDirective(stringStream));
 
         continue;
       }
@@ -70,6 +53,7 @@ export class Tokenizer {
         }
 
         tokens.push({
+          bits: undefined,
           type: 'mnemonic',
           value: buffer,
         });
@@ -83,6 +67,7 @@ export class Tokenizer {
 
       if (c === ':') {
         tokens.push({
+          bits: undefined,
           type: 'label',
           value: buffer,
         });
@@ -104,21 +89,18 @@ export class Tokenizer {
     let buffer: string = '';
 
     while (stringStream.peek()) {
-      const c: string = stringStream.next();
+      const c: string | undefined = stringStream.next();
+
+      if (!c) {
+        break;
+      }
 
       if (c === ' ') {
         continue;
       }
 
       if (c === ';') {
-        if (stringStream.peek() === ' ') {
-          stringStream.next();
-        }
-
-        tokens.push({
-          type: 'comment',
-          value: stringStream.end(),
-        });
+        tokens.push(...this.parseComment(stringStream));
 
         buffer = '';
 
@@ -127,6 +109,7 @@ export class Tokenizer {
 
       if (c === ',') {
         tokens.push({
+          bits: undefined,
           type: 'comma',
           value: undefined,
         });
@@ -138,6 +121,7 @@ export class Tokenizer {
 
       if (c === '(' || c === ')') {
         tokens.push({
+          bits: undefined,
           type: 'parentheses',
           value: undefined,
         });
@@ -148,14 +132,10 @@ export class Tokenizer {
       }
 
       if (c === '$') {
-        while (
-          stringStream.peek() &&
-          ![' ', ',', '(', ')'].includes(stringStream.peek())
-        ) {
-          buffer += stringStream.next();
-        }
+        buffer += this.readHexadecimal(stringStream);
 
         tokens.push({
+          bits: buffer.length === 2 ? 8 : buffer.length === 4 ? 16 : undefined,
           type: 'address',
           value: parseInt(buffer, 16),
         });
@@ -168,14 +148,10 @@ export class Tokenizer {
       if (c === '#' && stringStream.peek() === '$') {
         stringStream.next();
 
-        while (
-          stringStream.peek() &&
-          ![' ', ',', '(', ')'].includes(stringStream.peek())
-        ) {
-          buffer += stringStream.next();
-        }
+        buffer += this.readHexadecimal(stringStream);
 
         tokens.push({
+          bits: buffer.length === 2 ? 8 : buffer.length === 4 ? 16 : undefined,
           type: 'number',
           value: parseInt(buffer, 16),
         });
@@ -189,12 +165,13 @@ export class Tokenizer {
 
       while (
         stringStream.peek() &&
-        ![' ', ',', '(', ')'].includes(stringStream.peek())
+        ![' ', ',', '(', ')'].includes(stringStream.peek() || '')
       ) {
         buffer += stringStream.next();
       }
 
       tokens.push({
+        bits: undefined,
         type: 'literal',
         value: buffer,
       });
@@ -205,5 +182,52 @@ export class Tokenizer {
     }
 
     return tokens;
+  }
+
+  protected parseComment(stringStream: StringStream): Array<Token> {
+    if (stringStream.peek() === ' ') {
+      stringStream.next();
+    }
+
+    return [
+      {
+        bits: undefined,
+        type: 'comment',
+        value: stringStream.end(),
+      },
+    ];
+  }
+
+  protected parseDirective(stringStream: StringStream): Array<Token> {
+    const tokens: Array<Token> = [];
+
+    let buffer: string = '';
+
+    while (stringStream.peek() !== ' ') {
+      buffer += stringStream.next();
+    }
+
+    tokens.push({
+      bits: undefined,
+      type: 'directive',
+      value: buffer,
+    });
+
+    tokens.push(...this.tokenizeLineValue(stringStream));
+
+    return tokens;
+  }
+
+  protected readHexadecimal(stringStream: StringStream): string {
+    let value: string = '';
+
+    while (
+      stringStream.peek() &&
+      ![' ', ',', '(', ')'].includes(stringStream.peek()!)
+    ) {
+      value += stringStream.next();
+    }
+
+    return value;
   }
 }
