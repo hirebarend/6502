@@ -28,6 +28,6 @@ import { Tokenizer } from './tokenizer';
 
 const src: string = fs.readFileSync('data/code-1.asm', 'utf-8');
 
-const tokenizer = new Tokenizer(src);
+const assembler: Assembler = new Assembler(src);
 
-fs.writeFileSync('aa.txt', JSON.stringify(tokenizer.tokenize(), undefined, 4));
+assembler.assemble();

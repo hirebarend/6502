@@ -2,6 +2,7 @@ export type AddressingMode =
   | 'absolute'
   | 'absolute_x'
   | 'absolute_y'
+  | 'accumulator'
   | 'immediate'
   | 'implied'
   | 'relative'

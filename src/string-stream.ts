@@ -3,23 +3,21 @@ export class StringStream {
 
   constructor(protected str: string) {}
 
+  public end() {
+    let buffer: string = '';
+
+    while (this.peek()) {
+      buffer += this.next();
+    }
+
+    return buffer;
+  }
+
   public next() {
     return this.str[this.index++];
   }
 
-  public peek() {
-    return this.str[this.index];
-  }
-
-  public skipWhitespace(): string {
-    let buffer: string = '';
-
-    while (this.peek() === ' ') {
-      const c: string = this.next();
-
-      buffer += c;
-    }
-
-    return buffer;
+  public peek(n: number = 0) {
+    return this.str[this.index + n];
   }
 }

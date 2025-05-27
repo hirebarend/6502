@@ -1,5 +1,13 @@
 import { StringStream } from './string-stream';
 
+test('#end', async () => {
+  const stringStream = new StringStream('LDA $#00 ; this is a comment');
+
+  const result = stringStream.end();
+
+  expect(result).toBe('LDA $#00 ; this is a comment');
+});
+
 test('#next', async () => {
   const stringStream = new StringStream('LDA $#00 ; this is a comment');
 
@@ -16,10 +24,10 @@ test('#peek', async () => {
   expect(result).toBe('L');
 });
 
-test('#skipWhitespace', async () => {
-  const stringStream = new StringStream('     LDA #$00 ; this is a comment');
+test('#peek', async () => {
+  const stringStream = new StringStream('LDA $#00 ; this is a comment');
 
-  const result = stringStream.skipWhitespace();
+  const result = stringStream.peek(1);
 
-  expect(result).toBe('     ');
+  expect(result).toBe('D');
 });

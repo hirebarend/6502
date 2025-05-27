@@ -12,10 +12,8 @@ export class Tokenizer {
     return lines.map((x) => this.tokenizeLine(x)).reduce((a, b) => a.concat(b));
   }
 
-  protected tokenizeLine(src: string): Array<Token> {
+  public tokenizeLine(src: string): Array<Token> {
     const stringStream: StringStream = new StringStream(src);
-
-    stringStream.skipWhitespace();
 
     const tokens: Array<Token> = [];
 
@@ -24,18 +22,18 @@ export class Tokenizer {
     while (stringStream.peek()) {
       const c: string = stringStream.next();
 
+      if (c === ' ') {
+        continue;
+      }
+
       if (c === ';') {
         if (stringStream.peek() === ' ') {
           stringStream.next();
         }
 
-        while (stringStream.peek()) {
-          buffer += stringStream.next();
-        }
-
         tokens.push({
           type: 'comment',
-          value: buffer,
+          value: stringStream.end(),
         });
 
         buffer = '';
@@ -60,18 +58,17 @@ export class Tokenizer {
         continue;
       }
 
-      if (c === ':') {
-        tokens.push({
-          type: 'label',
-          value: buffer,
-        });
+      if (
+        !buffer &&
+        !tokens.length &&
+        (!stringStream.peek(2) || stringStream.peek(2) === ' ')
+      ) {
+        buffer += c;
 
-        buffer = '';
+        while (stringStream.peek() && stringStream.peek() !== ' ') {
+          buffer += stringStream.next();
+        }
 
-        return tokens;
-      }
-
-      if (c === ' ' && buffer.length === 3 && !tokens.length) {
         tokens.push({
           type: 'mnemonic',
           value: buffer,
@@ -84,92 +81,128 @@ export class Tokenizer {
         continue;
       }
 
+      if (c === ':') {
+        tokens.push({
+          type: 'label',
+          value: buffer,
+        });
+
+        buffer = '';
+
+        return tokens;
+      }
+
       buffer += c;
     }
 
     return tokens;
   }
 
-  protected tokenizeLineValue(stringStream: StringStream): Array<Token> {
-    stringStream.skipWhitespace();
-
+  public tokenizeLineValue(stringStream: StringStream): Array<Token> {
     const tokens: Array<Token> = [];
 
     let buffer: string = '';
 
-    const c: string = stringStream.next();
+    while (stringStream.peek()) {
+      const c: string = stringStream.next();
 
-    if (c === ';') {
-      if (stringStream.peek() === ' ') {
-        stringStream.next();
+      if (c === ' ') {
+        continue;
       }
 
-      while (stringStream.peek()) {
+      if (c === ';') {
+        if (stringStream.peek() === ' ') {
+          stringStream.next();
+        }
+
+        tokens.push({
+          type: 'comment',
+          value: stringStream.end(),
+        });
+
+        buffer = '';
+
+        continue;
+      }
+
+      if (c === ',') {
+        tokens.push({
+          type: 'comma',
+          value: undefined,
+        });
+
+        buffer = '';
+
+        continue;
+      }
+
+      if (c === '(' || c === ')') {
+        tokens.push({
+          type: 'parentheses',
+          value: undefined,
+        });
+
+        buffer = '';
+
+        continue;
+      }
+
+      if (c === '$') {
+        while (
+          stringStream.peek() &&
+          ![' ', ',', '(', ')'].includes(stringStream.peek())
+        ) {
+          buffer += stringStream.next();
+        }
+
+        tokens.push({
+          type: 'address',
+          value: parseInt(buffer, 16),
+        });
+
+        buffer = '';
+
+        continue;
+      }
+
+      if (c === '#' && stringStream.peek() === '$') {
+        stringStream.next();
+
+        while (
+          stringStream.peek() &&
+          ![' ', ',', '(', ')'].includes(stringStream.peek())
+        ) {
+          buffer += stringStream.next();
+        }
+
+        tokens.push({
+          type: 'number',
+          value: parseInt(buffer, 16),
+        });
+
+        buffer = '';
+
+        continue;
+      }
+
+      buffer += c;
+
+      while (
+        stringStream.peek() &&
+        ![' ', ',', '(', ')'].includes(stringStream.peek())
+      ) {
         buffer += stringStream.next();
       }
 
       tokens.push({
-        type: 'comment',
+        type: 'literal',
         value: buffer,
       });
 
       buffer = '';
 
-      stringStream.skipWhitespace();
-
-      return tokens;
+      continue;
     }
-
-    if (c === '$') {
-      while (stringStream.peek() && stringStream.peek() !== ' ') {
-        buffer += stringStream.next();
-      }
-
-      tokens.push({
-        type: 'address',
-        value: parseInt(buffer, 16),
-      });
-
-      buffer = '';
-
-      stringStream.skipWhitespace();
-
-      return tokens;
-    }
-
-    if (c === '#' && stringStream.peek() === '$') {
-      stringStream.next();
-
-      while (stringStream.peek() && stringStream.peek() !== ' ') {
-        buffer += stringStream.next();
-      }
-
-      tokens.push({
-        type: 'number',
-        value: parseInt(buffer, 16),
-      });
-
-      buffer = '';
-
-      stringStream.skipWhitespace();
-
-      return tokens;
-    }
-
-    buffer += c;
-
-    while (stringStream.peek() && stringStream.peek() !== ' ') {
-      buffer += stringStream.next();
-    }
-
-    tokens.push({
-      type: 'literal',
-      value: buffer,
-    });
-
-    buffer = '';
-
-    stringStream.skipWhitespace();
 
     return tokens;
   }
