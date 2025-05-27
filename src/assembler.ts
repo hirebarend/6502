@@ -25,6 +25,13 @@ const OPCODES: Record<string, { [key: string]: number }> = {
   BRK: {
     implied: 0x00,
   },
+  CPX: {
+    immediate: 0xe0,
+  },
+  JMP: {
+    absolute: 0x4c,
+    absolute_indirect: 0x6c,
+  },
   //////
   CLC: {
     implied: 0x18,
@@ -99,7 +106,12 @@ export class Assembler {
           label = undefined;
         }
 
-        if (tokenStream.peek()) {
+        if (
+          tokenStream.peek() &&
+          !['comment', 'directive', 'label', 'mnemonic'].includes(
+            tokenStream.peek().type,
+          )
+        ) {
           token = tokenStream.next();
 
           if (token.type === 'literal' && token.value === 'A') {
@@ -215,7 +227,11 @@ export class Assembler {
     //     continue;
     //   }
 
-    //   memory[x.position] =
+    //   if (!OPCODES[x.mnemonic]) {
+    //     throw new Error(`unable to find ${x.mnemonic}`);
+    //   }
+
+    //   memory[x.position] = OPCODES[x.mnemonic][x.addressingMode];
 
     //   if (x.value) {
     //     for (let i = 0; i < x.value.length; i++) {
@@ -223,6 +239,28 @@ export class Assembler {
     //     }
     //   }
     // }
+
+    const memory = [];
+
+    for (const x of arr) {
+      if (!x.position) {
+        continue;
+      }
+
+      if (!OPCODES[x.mnemonic]) {
+        throw new Error(`unable to find ${x.mnemonic}`);
+      }
+
+      memory.push(OPCODES[x.mnemonic][x.addressingMode]);
+
+      if (x.value) {
+        for (let i = 0; i < x.value.length; i++) {
+          memory.push(x.value[i]);
+        }
+      }
+    }
+
+    return new Uint8Array(memory);
 
     // ///////////////////////////////
 
@@ -248,19 +286,25 @@ export class Assembler {
 
     // return output.map((x) => x.toString(16));
 
-    for (const x of arr) {
-      if (x.value) {
-        console.log(
-          `${OPCODES[x.mnemonic][x.addressingMode].toString(16)} ${x.value.map((y) => (y as any).toString(16)).join(' ')} ; ${x.mnemonic}`,
-        );
-      } else {
-        console.log(
-          `${OPCODES[x.mnemonic][x.addressingMode].toString(16)} ; ${x.mnemonic}`,
-        );
-      }
-    }
+    // ////////////////////////
 
-    return new Uint8Array([]);
+    // for (const x of arr) {
+    //   if (!OPCODES[x.mnemonic]) {
+    //     throw new Error(x.mnemonic);
+    //   }
+
+    //   if (x.value) {
+    //     console.log(
+    //       `${OPCODES[x.mnemonic][x.addressingMode].toString(16)} ${x.value.map((y) => (y as any).toString(16)).join(' ')} ; ${x.mnemonic}`,
+    //     );
+    //   } else {
+    //     console.log(
+    //       `${OPCODES[x.mnemonic][x.addressingMode].toString(16)} ; ${x.mnemonic}`,
+    //     );
+    //   }
+    // }
+
+    // return memory;
   }
 
   protected isBranchInstruction(mnemonic: string | undefined): boolean {

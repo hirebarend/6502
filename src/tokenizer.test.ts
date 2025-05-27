@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import { Tokenizer } from './tokenizer';
 
-test('#tokenizeLine', async () => {
+test('#tokenizeLine [; this is a comment]', async () => {
   const tokenizer: Tokenizer = new Tokenizer('');
 
   const result = tokenizer.tokenizeLine('; this is a comment');
@@ -64,7 +64,7 @@ test('#tokenizeLine', async () => {
   ]);
 });
 
-test('#tokenizeLine', async () => {
+test('#tokenizeLine [ADC #$00]', async () => {
   const tokenizer: Tokenizer = new Tokenizer('');
 
   const result = tokenizer.tokenizeLine('ADC #$00');
@@ -223,7 +223,7 @@ test('#tokenize', async () => {
 
   expect(result).toStrictEqual([
     { bits: undefined, type: 'directive', value: 'org' },
-    { bits: 16, type: 'address', value: 32768 },
+    { bits: 16, type: 'address', value: 24576 },
     { bits: undefined, type: 'comment', value: 'Start address' },
     { bits: undefined, type: 'label', value: 'start' },
     { bits: undefined, type: 'mnemonic', value: 'LDX' },
