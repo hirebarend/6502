@@ -96,7 +96,7 @@ export class Assembler {
           addressingMode: 'implied' as AddressingMode,
           label: undefined as string | undefined,
           mnemonic: token.value as string,
-          position: undefined as number | undefined,
+          position: this.pointer,
           value: undefined as Uint8Array | undefined,
         };
 
@@ -141,7 +141,7 @@ export class Assembler {
               obj.addressingMode = 'zeropage_y_indirect';
             }
 
-            obj.value = this.tokenToValue(tokenStream.peek(), false);
+            obj.value = this.tokenToValue(tokenStream.peek(), undefined, false);
 
             // TODO:
             tokenStream.next();
@@ -157,7 +157,7 @@ export class Assembler {
           ) {
             obj.addressingMode = 'absolute_indirect';
 
-            obj.value = this.tokenToValue(tokenStream.peek(), false);
+            obj.value = this.tokenToValue(tokenStream.peek(), undefined, false);
 
             // TODO
             tokenStream.next();
@@ -182,7 +182,7 @@ export class Assembler {
                 }
               }
 
-              obj.value = this.tokenToValue(token, false);
+              obj.value = this.tokenToValue(token, undefined, false);
 
               // TODO:
               tokenStream.next();
@@ -190,15 +190,15 @@ export class Assembler {
             } else if (this.isBranchInstruction(obj.mnemonic)) {
               obj.addressingMode = 'relative';
 
-              obj.value = this.tokenToValue(token, true);
+              obj.value = this.tokenToValue(token, obj.position, true);
             } else if (token.bits === 8) {
               obj.addressingMode = 'zeropage';
 
-              obj.value = this.tokenToValue(token, false);
+              obj.value = this.tokenToValue(token, undefined, false);
             } else {
               obj.addressingMode = 'absolute';
 
-              obj.value = this.tokenToValue(token, false);
+              obj.value = this.tokenToValue(token, undefined, false);
             }
           } else if (token.type === 'number') {
             obj.addressingMode = 'immediate';
@@ -209,7 +209,6 @@ export class Assembler {
           }
         }
 
-        obj.position = this.pointer;
         this.pointer += 1 + (obj.value ? obj.value.length : 0);
 
         if (obj.label && !this.labels[obj.label]) {
@@ -220,91 +219,41 @@ export class Assembler {
       }
     }
 
-    // const memory: Uint8Array = new Uint8Array(0x10000);
-
-    // for (const x of arr) {
-    //   if (!x.position) {
-    //     continue;
-    //   }
-
-    //   if (!OPCODES[x.mnemonic]) {
-    //     throw new Error(`unable to find ${x.mnemonic}`);
-    //   }
-
-    //   memory[x.position] = OPCODES[x.mnemonic][x.addressingMode];
-
-    //   if (x.value) {
-    //     for (let i = 0; i < x.value.length; i++) {
-    //       memory[x.position + i + 1] = x.value[i];
-    //     }
-    //   }
-    // }
-
-    const memory = [];
+    const memory: Uint8Array = new Uint8Array(0x10000);
 
     for (const x of arr) {
       if (!x.position) {
         continue;
       }
 
-      if (!OPCODES[x.mnemonic]) {
-        throw new Error(`unable to find ${x.mnemonic}`);
-      }
-
-      memory.push(OPCODES[x.mnemonic][x.addressingMode]);
+      memory[x.position] = OPCODES[x.mnemonic][x.addressingMode];
 
       if (x.value) {
         for (let i = 0; i < x.value.length; i++) {
-          memory.push(x.value[i]);
+          memory[x.position + i + 1] = x.value[i];
         }
       }
     }
 
-    return new Uint8Array(memory);
+    return memory;
 
-    // ///////////////////////////////
-
-    // const output = [];
+    // const memory = [];
 
     // for (const x of arr) {
     //   if (!x.position) {
     //     continue;
     //   }
 
-    //   if (!OPCODES[x.mnemonic]) {
-    //     throw new Error(x.mnemonic);
-    //   }
-
-    //   output.push(OPCODES[x.mnemonic][x.addressingMode]);
+    //   memory.push(OPCODES[x.mnemonic][x.addressingMode]);
 
     //   if (x.value) {
     //     for (let i = 0; i < x.value.length; i++) {
-    //       output.push(x.value[i]);
+    //       memory.push(x.value[i]);
     //     }
     //   }
     // }
 
-    // return output.map((x) => x.toString(16));
-
-    // ////////////////////////
-
-    // for (const x of arr) {
-    //   if (!OPCODES[x.mnemonic]) {
-    //     throw new Error(x.mnemonic);
-    //   }
-
-    //   if (x.value) {
-    //     console.log(
-    //       `${OPCODES[x.mnemonic][x.addressingMode].toString(16)} ${x.value.map((y) => (y as any).toString(16)).join(' ')} ; ${x.mnemonic}`,
-    //     );
-    //   } else {
-    //     console.log(
-    //       `${OPCODES[x.mnemonic][x.addressingMode].toString(16)} ; ${x.mnemonic}`,
-    //     );
-    //   }
-    // }
-
-    // return memory;
+    // return new Uint8Array(memory);
   }
 
   protected isBranchInstruction(mnemonic: string | undefined): boolean {
@@ -319,6 +268,7 @@ export class Assembler {
 
   protected tokenToValue(
     token: Token,
+    position: number | undefined,
     isBranchInstruction: boolean,
   ): Uint8Array | undefined {
     if (token.type === 'address') {
@@ -336,9 +286,10 @@ export class Assembler {
         numberToLittleEndian(this.variables[token.value as string], 2),
       );
     } else if (token.type === 'literal' && isBranchInstruction) {
-      return new Uint8Array(
-        numberToLittleEndian(this.labels[token.value as string], 2),
-      );
+      const delta: number =
+        this.labels[token.value as string] - (position || 0);
+
+      return new Uint8Array([delta & 0xff]);
     }
 
     return undefined;

@@ -326,7 +326,7 @@ test('#assemble', async () => {
       0xe0, 0x10,
 
       // BNE print_loop
-      0xd0, 0x0c, 0x60,
+      0xd0, 0x61,
 
       // BRK
       0x00,
