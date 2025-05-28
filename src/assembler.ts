@@ -219,7 +219,7 @@ export class Assembler {
       }
     }
 
-    const memory: Uint8Array = new Uint8Array(0x10000);
+    const memory: Uint8Array = new Uint8Array(0x10000).fill(0xea);
 
     for (const x of arr) {
       if (!x.position) {
@@ -287,7 +287,7 @@ export class Assembler {
       );
     } else if (token.type === 'literal' && isBranchInstruction) {
       const delta: number =
-        this.labels[token.value as string] - (position || 0);
+        this.labels[token.value as string] - (position || 0) - 2;
 
       return new Uint8Array([delta & 0xff]);
     }
