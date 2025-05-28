@@ -244,7 +244,7 @@ test('#tokenize', async () => {
     { bits: undefined, type: 'mnemonic', value: 'LDA' },
     { bits: undefined, type: 'literal', value: 'fib1' },
     { bits: undefined, type: 'mnemonic', value: 'STA' },
-    { bits: 16, type: 'address', value: 24576 },
+    { bits: 16, type: 'address', value: 32768 },
     { bits: undefined, type: 'comment', value: 'Output to I/O register' },
     {
       bits: undefined,
@@ -277,7 +277,7 @@ test('#tokenize', async () => {
     { bits: undefined, type: 'comment', value: 'Increment counter' },
     { bits: undefined, type: 'mnemonic', value: 'INX' },
     { bits: undefined, type: 'mnemonic', value: 'CPX' },
-    { bits: 8, type: 'number', value: 16 },
+    { bits: 8, type: 'number', value: 10 },
     { bits: undefined, type: 'comment', value: 'Have we printed 10 numbers?' },
     { bits: undefined, type: 'mnemonic', value: 'BNE' },
     { bits: undefined, type: 'literal', value: 'print_loop' },

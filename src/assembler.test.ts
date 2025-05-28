@@ -303,10 +303,10 @@ test('#assemble', async () => {
       0xff,
       0xff,
 
-      // STA $6000
+      // STA $8000
       0x8d,
       0x00,
-      0x60,
+      0x80,
 
       // LDA fib1
       0xad,
@@ -349,9 +349,9 @@ test('#assemble', async () => {
       // INX
       0xe8,
 
-      // CPX #$10
+      // CPX #$0A
       0xe0,
-      0x10,
+      0x0a,
 
       // BNE print_loop
       0xd0,

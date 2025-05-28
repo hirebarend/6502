@@ -10,7 +10,7 @@ start:
 print_loop:
         ; Print fib1
         LDA fib1
-        STA $6000            ; Output to I/O register
+        STA $8000            ; Output to I/O register
 
         ; Calculate next Fibonacci number
         LDA fib1             ; A = fib1
@@ -26,7 +26,7 @@ print_loop:
 
         ; Increment counter
         INX
-        CPX #$10             ; Have we printed 10 numbers?
+        CPX #$0A             ; Have we printed 10 numbers?
         BNE print_loop       ; If not, repeat
 
         BRK                  ; End program

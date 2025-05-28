@@ -1,8 +1,8 @@
-import { OPCODES } from './opcodes';
+import { OPCODES, OPCODES_TRANSFORMED } from './opcodes';
 import { AddressingMode } from './types';
 
 export class Emulator {
-  protected PC: number = 0x0000;
+  protected PC: number = 0x6000; // TODO
 
   protected A: number = 0x00;
   protected X: number = 0x00;
@@ -14,7 +14,7 @@ export class Emulator {
   protected V: boolean = false;
   protected Z: boolean = false;
 
-  constructor(protected memory: Uint32Array) {}
+  constructor(protected memory: Uint8Array) {}
 
   protected readByte(address: number): number {
     return this.memory[address & 0xffff];
@@ -24,6 +24,51 @@ export class Emulator {
     const low = this.readByte(address);
     const high = this.readByte((address + 1) & 0xffff);
     return (high << 8) | low;
+  }
+
+  protected resolveAddress(addressingMode: AddressingMode): number {
+    switch (addressingMode) {
+      case 'zeropage': {
+        return this.readByte(this.PC++);
+      }
+
+      case 'zeropage_x': {
+        const base = this.readByte(this.PC++);
+        return (base + this.X) & 0xff;
+      }
+
+      case 'absolute': {
+        const addr = this.readWord(this.PC);
+        this.PC += 2;
+        return addr;
+      }
+
+      case 'absolute_x': {
+        const base = this.readWord(this.PC);
+        this.PC += 2;
+        return (base + this.X) & 0xffff;
+      }
+
+      case 'zeropage_x_indirect': {
+        const zp = (this.readByte(this.PC++) + this.X) & 0xff;
+        const low = this.readByte(zp);
+        const high = this.readByte((zp + 1) & 0xff);
+        return (high << 8) | low;
+      }
+
+      case 'zeropage_y_indirect': {
+        const zp = this.readByte(this.PC++);
+        const low = this.readByte(zp);
+        const high = this.readByte((zp + 1) & 0xff);
+        const base = (high << 8) | low;
+        return (base + this.Y) & 0xffff;
+      }
+
+      default:
+        throw new Error(
+          `Unsupported addressing mode for STA: ${addressingMode}`,
+        );
+    }
   }
 
   protected resolveOperand(addressingMode: AddressingMode): number {
@@ -102,11 +147,12 @@ export class Emulator {
 
     const opcode = this.readByte(this.PC++);
 
-    const mnemonic = OPCODES[opcode].mnemonic;
+    const mnemonic = OPCODES_TRANSFORMED[opcode].mnemonic;
 
-    const addressingMode = OPCODES[opcode].addressingMode;
+    const addressingMode: AddressingMode =
+      OPCODES_TRANSFORMED[opcode].addressingMode;
 
-    console.log(`[${mnemonic}] - ${addressingMode}`);
+    // console.log(`[${mnemonic}] - ${addressingMode}`);
 
     const handlers: Record<
       string,
@@ -115,15 +161,18 @@ export class Emulator {
       ADC: this.handleAdc,
       BNE: this.handleBne,
       BRK: this.handleBrk,
+      CLC: this.handleClc,
       CPX: this.handleCpx,
       INX: this.handleInx,
+      LDA: this.handleLda,
       LDX: this.handleLdx,
+      STA: this.handleSta,
     };
 
     const handler = handlers[mnemonic];
 
     if (!handler) {
-      throw new Error('');
+      throw new Error(`${mnemonic}`);
     }
 
     return handler.call(this, addressingMode);
@@ -172,6 +221,16 @@ export class Emulator {
     return true;
   }
 
+  protected handleClc(addressingMode: AddressingMode): boolean {
+    if (addressingMode !== 'implied') {
+      throw new Error(`unexpected addressing mode: ${addressingMode}`);
+    }
+
+    this.setC(false);
+
+    return true;
+  }
+
   protected handleCpx(addressingMode: AddressingMode): boolean {
     const value: number = this.resolveOperand(addressingMode);
 
@@ -197,11 +256,34 @@ export class Emulator {
     return true;
   }
 
+  protected handleLda(addressingMode: AddressingMode): boolean {
+    const value: number = this.resolveOperand(addressingMode);
+
+    this.A = value;
+
+    this.setN(this.A);
+    this.setZ(this.A);
+
+    return true;
+  }
+
   protected handleLdx(addressingMode: AddressingMode): boolean {
     this.X = this.resolveOperand(addressingMode);
 
     this.setN(this.X);
     this.setZ(this.X);
+
+    return true;
+  }
+
+  protected handleSta(addressingMode: AddressingMode): boolean {
+    const addr = this.resolveAddress(addressingMode);
+
+    this.memory[addr] = this.A;
+
+    if (addr === 0x8000) {
+      console.log(this.A);
+    }
 
     return true;
   }
