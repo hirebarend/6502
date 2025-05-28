@@ -2,6 +2,8 @@
 
 A minimal assembler and emulator for the classic 6502 CPU — built from scratch for learning, fun, and retro computing nostalgia.
 
+![](/images/screenshot.png)
+
 ## Get Started
 
 ```bash
@@ -12,6 +14,11 @@ cd 6502
 # assemble
 npm run dev -- fibonacci.asm fibonacci.bin
 ```
+
+## Links
+
+- [6502 Family CPU Reference](https://www.pagetable.com/c64ref/6502)
+- [6502 Disassembler](https://www.masswerk.at/6502/disassembler.html)
 
 ## Contributing
 

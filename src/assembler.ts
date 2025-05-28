@@ -1,52 +1,8 @@
 import { numberToLittleEndian } from './misc';
-import { StringStream } from './string-stream';
+import { OPCODES } from './opcodes';
 import { TokenStream } from './token-stream';
 import { Tokenizer } from './tokenizer';
 import { AddressingMode, Token } from './types';
-
-const OPCODES: Record<string, { [key: string]: number }> = {
-  ADC: {
-    absolute: 0x6d,
-    immediate: 0x69,
-  },
-  AND: {
-    absolute: 0x2d,
-    immediate: 0x29,
-  },
-  ASL: {
-    absolute: 0x0e,
-  },
-  INX: {
-    implied: 0xe8,
-  },
-  BNE: {
-    relative: 0xd0,
-  },
-  BRK: {
-    implied: 0x00,
-  },
-  CPX: {
-    immediate: 0xe0,
-  },
-  JMP: {
-    absolute: 0x4c,
-    absolute_indirect: 0x6c,
-  },
-  //////
-  CLC: {
-    implied: 0x18,
-  },
-  LDA: {
-    absolute: 0xad,
-    immediate: 0xa9,
-  },
-  LDX: {
-    immediate: 0xa2,
-  },
-  STA: {
-    absolute: 0x8d,
-  },
-};
 
 export class Assembler {
   protected labels: Record<string, number> = {};
@@ -59,7 +15,7 @@ export class Assembler {
 
   constructor(protected src: string) {}
 
-  public assemble() {
+  public toInstructions() {
     const arr = [];
 
     const tokens: Array<Token> = new Tokenizer(this.src).tokenize();
@@ -219,6 +175,12 @@ export class Assembler {
       }
     }
 
+    return arr;
+  }
+
+  public assemble() {
+    const arr = this.toInstructions();
+
     const memory: Uint8Array = new Uint8Array(0x10000).fill(0xea);
 
     for (const x of arr) {
@@ -236,24 +198,6 @@ export class Assembler {
     }
 
     return memory;
-
-    // const memory = [];
-
-    // for (const x of arr) {
-    //   if (!x.position) {
-    //     continue;
-    //   }
-
-    //   memory.push(OPCODES[x.mnemonic][x.addressingMode]);
-
-    //   if (x.value) {
-    //     for (let i = 0; i < x.value.length; i++) {
-    //       memory.push(x.value[i]);
-    //     }
-    //   }
-    // }
-
-    // return new Uint8Array(memory);
   }
 
   protected isBranchInstruction(mnemonic: string | undefined): boolean {
