@@ -9,7 +9,7 @@ export class Assembler {
 
   protected pointer: number = 0;
 
-  protected reservedPointer: number = 0x10000;
+  protected reservedPointer: number = 0xfffe;
 
   protected variables: Record<string, number> = {};
 
@@ -36,7 +36,7 @@ export class Assembler {
 
         // this.pointer = this.tokenToValue(token, false);
 
-        this.pointer = 0x6000;
+        this.pointer = 0x6000; // TODO
 
         continue;
       }
@@ -99,7 +99,6 @@ export class Assembler {
 
             obj.value = this.tokenToValue(tokenStream.peek(), undefined, false);
 
-            // TODO:
             tokenStream.next();
             tokenStream.next();
             tokenStream.next();
@@ -115,7 +114,6 @@ export class Assembler {
 
             obj.value = this.tokenToValue(tokenStream.peek(), undefined, false);
 
-            // TODO
             tokenStream.next();
             tokenStream.next();
           } else if (token.type === 'address' || token.type === 'literal') {
@@ -140,7 +138,6 @@ export class Assembler {
 
               obj.value = this.tokenToValue(token, undefined, false);
 
-              // TODO:
               tokenStream.next();
               tokenStream.next();
             } else if (this.isBranchInstruction(obj.mnemonic)) {
@@ -182,6 +179,9 @@ export class Assembler {
     const arr = this.toInstructions();
 
     const memory: Uint8Array = new Uint8Array(0x10000).fill(0xea);
+
+    memory[0xfffe] = numberToLittleEndian(arr[0].position)[0];
+    memory[0xffff] = numberToLittleEndian(arr[0].position)[1];
 
     for (const x of arr) {
       if (!x.position) {

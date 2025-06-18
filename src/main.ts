@@ -13,4 +13,6 @@ fs.writeFileSync(argv[3], result);
 
 const emulator: Emulator = new Emulator(result);
 
+emulator.initialize();
+
 while (emulator.tick()) {}

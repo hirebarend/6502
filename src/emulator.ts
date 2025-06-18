@@ -1,4 +1,4 @@
-import { OPCODES, OPCODES_TRANSFORMED } from './opcodes';
+import { OPCODES_TRANSFORMED } from './opcodes';
 import { AddressingMode } from './types';
 
 export class Emulator {
@@ -135,9 +135,8 @@ export class Emulator {
     this.Z = value === 0;
   }
 
-  public state() {
-    console.log(`A: ${this.A}`);
-    console.log(`A: ${this.X}`);
+  public initialize() {
+    this.PC = this.readWord(0xfffe);
   }
 
   public tick() {
@@ -151,8 +150,6 @@ export class Emulator {
 
     const addressingMode: AddressingMode =
       OPCODES_TRANSFORMED[opcode].addressingMode;
-
-    // console.log(`[${mnemonic}] - ${addressingMode}`);
 
     const handlers: Record<
       string,
