@@ -260,7 +260,7 @@ test('#toInstructions [LDA temp]', async () => {
       label: undefined,
       mnemonic: 'LDA',
       position: 0,
-      value: new Uint8Array([0xff, 0xff]),
+      value: new Uint8Array([0x00, 0x00]),
     },
   ]);
 });
@@ -284,24 +284,24 @@ test('#assemble', async () => {
       0xa9,
       0x00,
 
-      // STA fib1
+      // STA fib1 (at $602E)
       0x8d,
-      0xff,
-      0xff,
+      0x2e,
+      0x60,
 
       // LDA #$01
       0xa9,
       0x01,
 
-      // STA fib2
+      // STA fib2 (at $602F)
       0x8d,
-      0xfe,
-      0xff,
+      0x2f,
+      0x60,
 
       // LDA fib1
       0xad,
-      0xff,
-      0xff,
+      0x2e,
+      0x60,
 
       // STA $8000
       0x8d,
@@ -310,41 +310,41 @@ test('#assemble', async () => {
 
       // LDA fib1
       0xad,
-      0xff,
-      0xff,
+      0x2e,
+      0x60,
 
       // CLC
       0x18,
 
       // ADC fib2
       0x6d,
-      0xfe,
-      0xff,
+      0x2f,
+      0x60,
 
-      // STA temp
+      // STA temp (at $6030)
       0x8d,
-      0xfd,
-      0xff,
+      0x30,
+      0x60,
 
       // LDA fib2
       0xad,
-      0xfe,
-      0xff,
+      0x2f,
+      0x60,
 
       // STA fib1
       0x8d,
-      0xff,
-      0xff,
+      0x2e,
+      0x60,
 
       // LDA temp
       0xad,
-      0xfd,
-      0xff,
+      0x30,
+      0x60,
 
       // STA fib2
       0x8d,
-      0xfe,
-      0xff,
+      0x2f,
+      0x60,
 
       // INX
       0xe8,
@@ -360,7 +360,18 @@ test('#assemble', async () => {
       // BRK
       0x00,
 
-      ...new Uint8Array(0x9fd2).fill(0xea),
+      // .byte data (fib1, fib2, temp)
+      0x00,
+      0x00,
+      0x00,
+
+      ...new Uint8Array(0xfffc - 0x6031).fill(0xea),
+
+      // Reset vector points to $6000
+      0x00,
+      0x60,
+
+      ...new Uint8Array(2).fill(0xea),
     ]),
   );
 });
