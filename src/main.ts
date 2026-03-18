@@ -6,6 +6,12 @@ import { Emulator } from './emulator';
 const inputFile = argv[2] || 'fibonacci.asm';
 const outputFile = argv[3] || 'fibonacci.bin';
 
+if (!fs.existsSync(inputFile)) {
+  console.error(`Error: File "${inputFile}" not found.`);
+  console.error('Usage: npm run dev -- <input.asm> <output.bin>');
+  process.exit(1);
+}
+
 // Step 1: Read the assembly source code
 const src: string = fs.readFileSync(inputFile, 'utf-8');
 

@@ -205,6 +205,7 @@ export class Emulator {
   }
 
   public initialize() {
+    // Read program start address from the reset vector at $FFFC/$FFFD
     this.PC = this.readWord(0xfffc);
   }
 

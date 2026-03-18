@@ -318,31 +318,34 @@ export class Assembler {
   }
 
   protected writeByteData(memory: Uint8Array): void {
-    for (const labelName of Object.keys(this.labels)) {
-      const tokens: Array<Token> = new Tokenizer(this.src).tokenize();
-      const stream: TokenStream = new TokenStream(tokens);
+    const tokens: Array<Token> = new Tokenizer(this.src).tokenize();
+    const stream: TokenStream = new TokenStream(tokens);
 
-      let foundLabel = false;
+    let label: string | undefined = undefined;
 
-      while (stream.peek()) {
-        const token: Token = stream.next();
+    while (stream.peek()) {
+      const token: Token = stream.next();
 
-        if (token.type === 'label' && token.value === labelName) {
-          foundLabel = true;
-          continue;
-        }
-
-        if (foundLabel && token.type === 'directive' && token.value === 'byte') {
-          const next = stream.next();
-          const addr = this.labels[labelName];
-          memory[addr] = (next.value as number) & 0xff;
-          break;
-        }
-
-        if (foundLabel) {
-          break;
-        }
+      if (token.type === 'label') {
+        label = token.value as string;
+        continue;
       }
+
+      if (
+        label &&
+        token.type === 'directive' &&
+        token.value === 'byte'
+      ) {
+        const next = stream.next();
+        const addr = this.labels[label];
+        if (addr !== undefined) {
+          memory[addr] = (next.value as number) & 0xff;
+        }
+        label = undefined;
+        continue;
+      }
+
+      label = undefined;
     }
   }
 
