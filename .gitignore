@@ -1,3 +1,6 @@
+# Compiled binary output
+*.bin
+
 # Logs
 logs
 *.log

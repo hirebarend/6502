@@ -286,7 +286,13 @@ test('#tokenize', async () => {
     { bits: undefined, type: 'comment', value: 'End program' },
     { bits: undefined, type: 'comment', value: '--- Data ---' },
     { bits: undefined, type: 'label', value: 'fib1' },
+    { bits: undefined, type: 'directive', value: 'byte' },
+    { bits: 8, type: 'number', value: 0 },
     { bits: undefined, type: 'label', value: 'fib2' },
+    { bits: undefined, type: 'directive', value: 'byte' },
+    { bits: 8, type: 'number', value: 0 },
     { bits: undefined, type: 'label', value: 'temp' },
+    { bits: undefined, type: 'directive', value: 'byte' },
+    { bits: 8, type: 'number', value: 0 },
   ]);
 });

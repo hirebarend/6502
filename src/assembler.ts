@@ -9,16 +9,18 @@ export class Assembler {
 
   protected pointer: number = 0;
 
-  protected reservedPointer: number = 0xfffe;
-
-  protected variables: Record<string, number> = {};
-
   constructor(protected src: string) {}
 
   public toInstructions() {
-    const arr = [];
-
     const tokens: Array<Token> = new Tokenizer(this.src).tokenize();
+
+    // --- Pass 1: collect all labels and calculate positions ---
+
+    this.collectLabels(tokens);
+
+    // --- Pass 2: build instructions using resolved labels ---
+
+    const arr = [];
 
     const tokenStream: TokenStream = new TokenStream(tokens);
 
@@ -32,11 +34,14 @@ export class Assembler {
       }
 
       if (token.type === 'directive') {
-        token = tokenStream.next();
-
-        // this.pointer = this.tokenToValue(token, false);
-
-        this.pointer = 0x6000; // TODO
+        if (token.value === 'org') {
+          token = tokenStream.next();
+          this.pointer = token.value as number;
+        } else if (token.value === 'byte') {
+          tokenStream.next();
+          this.pointer += 1;
+          label = undefined;
+        }
 
         continue;
       }
@@ -180,14 +185,10 @@ export class Assembler {
 
     const memory: Uint8Array = new Uint8Array(0x10000).fill(0xea);
 
-    memory[0xfffe] = numberToLittleEndian(arr[0].position)[0];
-    memory[0xffff] = numberToLittleEndian(arr[0].position)[1];
+    memory[0xfffc] = numberToLittleEndian(arr[0].position)[0];
+    memory[0xfffd] = numberToLittleEndian(arr[0].position)[1];
 
     for (const x of arr) {
-      if (!x.position) {
-        continue;
-      }
-
       memory[x.position] = OPCODES[x.mnemonic][x.addressingMode];
 
       if (x.value) {
@@ -197,7 +198,155 @@ export class Assembler {
       }
     }
 
+    // Write .byte data into memory
+    this.writeByteData(memory);
+
     return memory;
+  }
+
+  protected collectLabels(tokens: Array<Token>): void {
+    const stream: TokenStream = new TokenStream([...tokens]);
+
+    let pointer: number = this.pointer;
+    let label: string | undefined = undefined;
+
+    while (stream.peek()) {
+      const token: Token = stream.next();
+
+      if (token.type === 'comment') {
+        continue;
+      }
+
+      if (token.type === 'directive') {
+        if (token.value === 'org') {
+          const next = stream.next();
+          pointer = next.value as number;
+        } else if (token.value === 'byte') {
+          if (label) {
+            this.labels[label] = pointer;
+            label = undefined;
+          }
+          stream.next();
+          pointer += 1;
+        }
+
+        continue;
+      }
+
+      if (token.type === 'label') {
+        label = token.value as string;
+
+        continue;
+      }
+
+      if (token.type === 'mnemonic') {
+        if (label) {
+          this.labels[label] = pointer;
+          label = undefined;
+        }
+
+        const mnemonic = token.value as string;
+
+        pointer += 1;
+
+        if (
+          stream.peek() &&
+          !['comment', 'directive', 'label', 'mnemonic'].includes(
+            stream.peek().type,
+          )
+        ) {
+          const operandToken = stream.peek();
+
+          if (operandToken.type === 'number') {
+            pointer += 1;
+            stream.next();
+          } else if (operandToken.type === 'parentheses') {
+            stream.next();
+
+            if (
+              stream.peek() &&
+              stream.peek().type === 'address' &&
+              stream.peek(1) &&
+              stream.peek(1).type === 'comma'
+            ) {
+              pointer += 1;
+              stream.next();
+              stream.next();
+              stream.next();
+              stream.next();
+            } else if (
+              stream.peek() &&
+              stream.peek().type === 'address' &&
+              stream.peek(1) &&
+              stream.peek(1).type === 'parentheses'
+            ) {
+              pointer += stream.peek().bits === 8 ? 1 : 2;
+              stream.next();
+              stream.next();
+            }
+          } else if (
+            operandToken.type === 'address' ||
+            operandToken.type === 'literal'
+          ) {
+            stream.next();
+
+            if (operandToken.type === 'literal') {
+              if (this.isBranchInstruction(mnemonic)) {
+                pointer += 1;
+              } else {
+                pointer += 2;
+              }
+            } else {
+              pointer += operandToken.bits === 8 ? 1 : 2;
+            }
+
+            if (
+              stream.peek() &&
+              stream.peek().type === 'comma' &&
+              stream.peek(1) &&
+              stream.peek(1).type === 'literal'
+            ) {
+              stream.next();
+              stream.next();
+            }
+          }
+        }
+
+        continue;
+      }
+    }
+  }
+
+  protected writeByteData(memory: Uint8Array): void {
+    const tokens: Array<Token> = new Tokenizer(this.src).tokenize();
+    const stream: TokenStream = new TokenStream(tokens);
+
+    let label: string | undefined = undefined;
+
+    while (stream.peek()) {
+      const token: Token = stream.next();
+
+      if (token.type === 'label') {
+        label = token.value as string;
+        continue;
+      }
+
+      if (
+        label &&
+        token.type === 'directive' &&
+        token.value === 'byte'
+      ) {
+        const next = stream.next();
+        const addr = this.labels[label];
+        if (addr !== undefined) {
+          memory[addr] = (next.value as number) & 0xff;
+        }
+        label = undefined;
+        continue;
+      }
+
+      label = undefined;
+    }
   }
 
   protected isBranchInstruction(mnemonic: string | undefined): boolean {
@@ -222,13 +371,13 @@ export class Assembler {
         return new Uint8Array(numberToLittleEndian(token.value as number, 2));
       }
     } else if (token.type === 'literal' && !isBranchInstruction) {
-      if (!this.variables[token.value as string]) {
-        this.variables[token.value as string] = --this.reservedPointer;
+      const address = this.labels[token.value as string];
+
+      if (address !== undefined) {
+        return new Uint8Array(numberToLittleEndian(address, 2));
       }
 
-      return new Uint8Array(
-        numberToLittleEndian(this.variables[token.value as string], 2),
-      );
+      return new Uint8Array([0x00, 0x00]);
     } else if (token.type === 'literal' && isBranchInstruction) {
       const delta: number =
         this.labels[token.value as string] - (position || 0) - 2;

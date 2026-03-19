@@ -74,7 +74,7 @@ export class Tokenizer {
 
         buffer = '';
 
-        return tokens;
+        continue;
       }
 
       buffer += c;
@@ -170,11 +170,19 @@ export class Tokenizer {
         buffer += stringStream.next();
       }
 
-      tokens.push({
-        bits: undefined,
-        type: 'literal',
-        value: buffer,
-      });
+      if (/^\d+$/.test(buffer)) {
+        tokens.push({
+          bits: 8,
+          type: 'number',
+          value: parseInt(buffer, 10),
+        });
+      } else {
+        tokens.push({
+          bits: undefined,
+          type: 'literal',
+          value: buffer,
+        });
+      }
 
       buffer = '';
 
